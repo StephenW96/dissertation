@@ -6,15 +6,16 @@ import torchaudio
 from nat_langs_dataset import NatLangsDataset
 from CNN_model import CNNNetwork
 
-BATCH_SIZE = 128
+# need to change hyperparameters
+BATCH_SIZE = 1
 EPOCHS = 10
 LEARNING_RATE = 0.001
 
-ANNOTATIONS_FILE = '/afs/inf.ed.ac.uk/user/s21/s2118613/dissertation/6langs.csv'
+ANNOTATIONS_FILE = '/afs/inf.ed.ac.uk/user/s21/s2118613/dissertation/limited_data.csv'
 #AUDIO_DIR = '/group/corporapublic/cslu_22_lang/speech/'
 AUDIO_DIR = '/afs/inf.ed.ac.uk/user/s21/s2118613/cslu_22_lang/speech/'
 SAMPLE_RATE = 8000
-# num samples = sample rate -> means 1 seconds worth of audiocd 
+# num samples = sample rate -> means 1 seconds worth of audio
 NUM_SAMPLES = 8000
 
 
@@ -48,13 +49,14 @@ def train(model, data_loader, loss_fn, optimiser, device, epochs):
 
 
 if __name__ == "__main__":
+    # if the GPU is available - use it
     if torch.cuda.is_available():
         device = "cuda"
     else:
         device = "cpu"
     print(f"Using {device}")
 
-    # instantiating our dataset object and create data loader
+    # defining mel-spectrogram data input
     mel_spectrogram = torchaudio.transforms.MelSpectrogram(
         sample_rate=SAMPLE_RATE,
         n_fft=1024,
@@ -62,9 +64,25 @@ if __name__ == "__main__":
         n_mels=64
     )
 
-    nld = NatLangsDataset(ANNOTATIONS_FILE, AUDIO_DIR, mel_spectrogram, SAMPLE_RATE, NUM_SAMPLES, device)
+    # MFCC alternative to mel-spectrogram - calculates the MFCC on the DB-scaled Mel spectrogram
+    mfcc = torchaudio.transforms.MFCC(
+        sample_rate=SAMPLE_RATE,
+        # 12-13 is sufficient for English - 20 for tonal langs, maybe accent info
+        n_mfcc=20
+    )
+
+
+    # instantiating our dataset object and create data loader
+    nld = NatLangsDataset(ANNOTATIONS_FILE, AUDIO_DIR, mfcc, SAMPLE_RATE, NUM_SAMPLES, device)
 
     train_dataloader = create_data_loader(nld, BATCH_SIZE)
+    dataiter = iter(train_dataloader)
+    feature, label = dataiter.next()
+    print(feature.shape)
+    feature, label = dataiter.next()
+    print(feature.shape)
+
+    quit()
 
     # construct model and assign it to device
     cnn_net = CNNNetwork().to(device)
