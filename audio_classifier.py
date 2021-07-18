@@ -56,11 +56,13 @@ if __name__ == "__main__":
         device = "cpu"
     print(f"Using {device}")
 
+    hop_length = 512
+    n_fft = 1024
     # defining mel-spectrogram data input
     mel_spectrogram = torchaudio.transforms.MelSpectrogram(
         sample_rate=SAMPLE_RATE,
-        n_fft=1024,
-        hop_length=512,
+        n_fft=n_fft,
+        hop_length=hop_length,
         n_mels=64
     )
 
@@ -68,21 +70,22 @@ if __name__ == "__main__":
     mfcc = torchaudio.transforms.MFCC(
         sample_rate=SAMPLE_RATE,
         # 12-13 is sufficient for English - 20 for tonal langs, maybe accent info
-        n_mfcc=20
+        n_mfcc=20,
+        melkwargs={'hop_length': hop_length,
+	'n_fft': n_fft}
     )
 
 
     # instantiating our dataset object and create data loader
-    nld = NatLangsDataset(ANNOTATIONS_FILE, AUDIO_DIR, mfcc, SAMPLE_RATE, NUM_SAMPLES, device)
+    nld = NatLangsDataset(ANNOTATIONS_FILE, AUDIO_DIR, mel_spectrogram, SAMPLE_RATE, NUM_SAMPLES, device)
 
     train_dataloader = create_data_loader(nld, BATCH_SIZE)
-    dataiter = iter(train_dataloader)
-    feature, label = dataiter.next()
-    print(feature.shape)
-    feature, label = dataiter.next()
-    print(feature.shape)
 
-    quit()
+    #dataiter = iter(train_dataloader)
+    #feature, label = dataiter.next()
+    #print(feature.shape)
+    # print(label)
+
 
     # construct model and assign it to device
     cnn_net = CNNNetwork().to(device)
