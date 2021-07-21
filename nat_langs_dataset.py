@@ -8,14 +8,17 @@ import os
 
 class NatLangsDataset(Dataset):
 
-    def __init__(self, annotations_file, audio_dir, transformation, target_sample_rate, num_samples, device):
+    def __init__(self, dataframe, audio_dir, transformation, target_sample_rate, num_samples, device):
         # file with path, name, labels
-        self.annotations = pd.read_csv(annotations_file)
+
+        #self.annotations = dataframe.iloc[200:204]
+        self.annotations = dataframe
+
         # path from cslu to each lang and speaker
         self.audio_dir = audio_dir
         # cpu or cuda
         self.device = device
-        # mel spectrogram
+        # mel spectrogram/ mfcc
         self.transformation = transformation.to(self.device)
         # 8000
         self.target_sample_rate = target_sample_rate
@@ -69,7 +72,6 @@ class NatLangsDataset(Dataset):
         #specific to annotation file -> coords change depending on this
         folders = self.annotations.iloc[index, 0]
         path = os.path.join(self.audio_dir, folders, self.annotations.iloc[index, 1])
-
         return path
 
     def _get_audio_sample_label(self, index) :
@@ -100,6 +102,6 @@ if __name__ == "__main__":
     print(nld[0])
 
     signal, label = nld[0]
-    print('Hello')
+
 
 

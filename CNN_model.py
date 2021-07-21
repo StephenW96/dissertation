@@ -35,9 +35,9 @@ class CNNNetwork(nn.Module):
 
         self.flatten = nn.Flatten()
 
-        # self.linear1 = nn.Linear(32 * 17 * 5, 256) # for MelSpec
+        self.linear1 = nn.Linear(32 * 17 * 5, 256) # for MelSpec
 
-        self.linear1 = nn.Linear(32 * 6 * 5, 256) # for MFCC
+        # self.linear1 = nn.Linear(32 * 6 * 5, 256) # for MFCC
         self.linear2 = nn.Linear(256,6)
         self.softmax = nn.Softmax(dim=1)
 
