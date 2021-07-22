@@ -10,10 +10,12 @@ from CNN_model import CNNNetwork
 PATH = '/afs/inf.ed.ac.uk/user/s21/s2118613/PycharmProjects/Simple_CNN/l1_classifier_melspec.pth'
 
 # Test file with labels
-TE_ANNOTATIONS_FILE = '/afs/inf.ed.ac.uk/user/s21/s2118613/dissertation/cslu_fae_labels.csv'
+#TE_ANNOTATIONS_FILE = '/afs/inf.ed.ac.uk/user/s21/s2118613/dissertation/cslu_fae_labels.csv'
+TE_ANNOTATIONS_FILE = '/content/gdrive/MyDrive/dissertation_data/annotations/cslu_fae_labels.csv'
 
 # Test audio directory
-TE_AUDIO_DIR = '/afs/inf.ed.ac.uk/user/s21/s2118613/cslu_fae/speech/'
+#TE_AUDIO_DIR = '/afs/inf.ed.ac.uk/user/s21/s2118613/cslu_fae/speech/'
+TE_AUDIO_DIR = '/content/gdrive/MyDrive/dissertation_data/cslu_fae/speech/'
 
 # Hyperparameters
 BATCH_SIZE = 1

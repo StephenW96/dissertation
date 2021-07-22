@@ -8,27 +8,28 @@ import pandas as pd
 from nat_langs_dataset import NatLangsDataset
 from CNN_model import CNNNetwork
 
+
+#### Training Model
+
 # Hyperparameters
 BATCH_SIZE = 1
 EPOCHS = 10
 LEARNING_RATE = 0.001
 
 # Train file with labels
-TR_ANNOTATIONS_FILE = '/afs/inf.ed.ac.uk/user/s21/s2118613/dissertation/cslu_22_labels.csv'
+#TR_ANNOTATIONS_FILE = '/afs/inf.ed.ac.uk/user/s21/s2118613/dissertation/cslu_22_labels.csv'
+TR_ANNOTATIONS_FILE = '/content/gdrive/MyDrive/dissertation_data/annotations/cslu_22_labels.csv'
 
 # AUDIO_DIR = '/group/corporapublic/cslu_22_lang/speech/'
 
 # Train audio directory
-TR_AUDIO_DIR = '/afs/inf.ed.ac.uk/user/s21/s2118613/cslu_22_lang/speech/'
+#TR_AUDIO_DIR = '/afs/inf.ed.ac.uk/user/s21/s2118613/cslu_22_lang/speech/'
+TR_AUDIO_DIR = '/content/gdrive/MyDrive/dissertation_data/cslu_22_lang/speech/'
 
 # Sample rate hyperparameter
 SAMPLE_RATE = 8000
 # num samples = sample rate -> means 1 seconds worth of audio
 NUM_SAMPLES = 8000
-
-
-def create_data_loader(train_data, batch_size):
-    return train_dataloader
 
 
 def train_val_dataset(dataset, val_split=0.05):
@@ -50,38 +51,50 @@ def train_single_epoch(model, train_dataloader, val_dataloader, loss_fn, optimis
         'SP': 5
     }
 
-    i = 0
     loss_sum = 0
+    acc = 0
+    i = 0
     for input, target in train_dataloader:
         # Map classes to number, convert batch to tensor
-        target_tensor = torch.tensor([class_mapping[x] for x in target])
+        target_tensor = torch.tensor([class_mapping[x] for x in target]).to(device)
         # print(target_tensor)
 
         # calculate loss
-        prediction = model(input)
+        prediction = model(input.to(device))
         loss = loss_fn(prediction, target_tensor)
         loss_sum += loss
+
+        if prediction == target:
+            acc += 1
         i+=1
+        #print(i)
+        # if i == 200:
+        #   break
+        
 
         # backpropagate error and update weights
         optimiser.zero_grad()
         loss.backward()
         optimiser.step()
 
-    print(f"Training loss: {(loss_sum/i).item()}")
-
-    i = 0
-    loss_val_sum = 0
+    print(f"Training loss: {(loss_sum/len(train_dataloader))}")
+    print(f"Training Accuracy: {acc/len(train_dataloader)}")
+    
+   loss_val_sum = 0
+    acc = 0
     with torch.no_grad():
         for input_val, target_val in val_dataloader:
-            target_val_tensor = torch.tensor([class_mapping[x] for x in target_val])
-            prediction_val = model(input_val)
+            target_val_tensor = torch.tensor([class_mapping[x] for x in target_val]).to(device)
+            prediction_val = model(input_val.to(device))
             loss_val = loss_fn(prediction_val, target_val_tensor)
 
             loss_val_sum += loss_val
-            i+=1
 
-    print(f"Dev loss: {(loss_val_sum/i).item()}")
+            if prediction_val == target:
+              acc += 1
+
+    print(f"Dev loss: {(loss_val_sum/len(val_dataloader))}")
+    print(f"Dev Accuracy: {(acc/len(val_dataloader))}")
 
 
 
