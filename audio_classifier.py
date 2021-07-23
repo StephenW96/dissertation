@@ -80,7 +80,7 @@ def train_single_epoch(model, train_dataloader, val_dataloader, loss_fn, optimis
     print(f"Training loss: {(loss_sum/len(train_dataloader))}")
     print(f"Training Accuracy: {acc/len(train_dataloader)}")
     
-   loss_val_sum = 0
+    loss_val_sum = 0
     acc = 0
     with torch.no_grad():
         for input_val, target_val in val_dataloader:
