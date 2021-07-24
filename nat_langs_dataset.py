@@ -11,7 +11,7 @@ class NatLangsDataset(Dataset):
     def __init__(self, dataframe, audio_dir, transformation, target_sample_rate, num_samples, device):
         # file with path, name, labels
 
-        #self.annotations = dataframe.iloc[200:204]
+        # self.annotations = dataframe.iloc[200:204]
         self.annotations = dataframe
 
         # path from cslu to each lang and speaker

@@ -3,8 +3,9 @@ from torch import nn
 from torch.utils.data import DataLoader, Subset
 import torchaudio
 from sklearn.model_selection import train_test_split
+from sklearn import metrics
 import pandas as pd
-
+import time
 from nat_langs_dataset import NatLangsDataset
 from CNN_model import CNNNetwork
 
@@ -12,19 +13,21 @@ from CNN_model import CNNNetwork
 #### Training Model
 
 # Hyperparameters
-BATCH_SIZE = 1
+BATCH_SIZE = 10
 EPOCHS = 10
 LEARNING_RATE = 0.001
 
 # Train file with labels
-#TR_ANNOTATIONS_FILE = '/afs/inf.ed.ac.uk/user/s21/s2118613/dissertation/cslu_22_labels.csv'
-TR_ANNOTATIONS_FILE = '/content/gdrive/MyDrive/dissertation_data/annotations/cslu_22_labels.csv'
+# TR_ANNOTATIONS_FILE = '/afs/inf.ed.ac.uk/user/s21/s2118613/dissertation/cslu_22_labels.csv'
+# TR_ANNOTATIONS_FILE = '/content/gdrive/MyDrive/dissertation_data/annotations/cslu_22_labels.csv'
+TR_ANNOTATIONS_FILE = '/Users/stephenwalters/Documents/msc_speech_and_language_processing/dissertation/dissertation_data/annotations/cslu_22_labels.csv'
 
 # AUDIO_DIR = '/group/corporapublic/cslu_22_lang/speech/'
 
 # Train audio directory
-#TR_AUDIO_DIR = '/afs/inf.ed.ac.uk/user/s21/s2118613/cslu_22_lang/speech/'
-TR_AUDIO_DIR = '/content/gdrive/MyDrive/dissertation_data/cslu_22_lang/speech/'
+# TR_AUDIO_DIR = '/afs/inf.ed.ac.uk/user/s21/s2118613/cslu_22_lang/speech/'
+# TR_AUDIO_DIR = '/content/gdrive/MyDrive/dissertation_data/cslu_22_lang/speech/'
+TR_AUDIO_DIR = '/Users/stephenwalters/Documents/msc_speech_and_language_processing/dissertation/dissertation_data/cslu_22_lang/speech'
 
 # Sample rate hyperparameter
 SAMPLE_RATE = 8000
@@ -52,9 +55,12 @@ def train_single_epoch(model, train_dataloader, val_dataloader, loss_fn, optimis
     }
 
     loss_sum = 0
-    acc = 0
+
     i = 0
+    targets_total = []
+    predictions_total = []
     for input, target in train_dataloader:
+
         # Map classes to number, convert batch to tensor
         target_tensor = torch.tensor([class_mapping[x] for x in target]).to(device)
         # print(target_tensor)
@@ -62,15 +68,25 @@ def train_single_epoch(model, train_dataloader, val_dataloader, loss_fn, optimis
         # calculate loss
         prediction = model(input.to(device))
         loss = loss_fn(prediction, target_tensor)
+
+        # accumulate loss for average
         loss_sum += loss
 
-        if prediction == target:
-            acc += 1
+        # argmax of classes = prediction
+        prediction_acc = torch.argmax(prediction, dim=1)
+
+
+        # Convert prediction tensor to np array and concatenate  into list of predictions
+        prediction_acc = prediction_acc.numpy()
+        predictions_total += list(prediction_acc)
+
+        # Convert target tensor to np array and concatenate  into list of targets
+        target_acc = target_tensor.numpy()
+        targets_total += list(target_acc)
+
         i+=1
-        #print(i)
-        # if i == 200:
-        #   break
-        
+        print(i)
+
 
         # backpropagate error and update weights
         optimiser.zero_grad()
@@ -78,7 +94,10 @@ def train_single_epoch(model, train_dataloader, val_dataloader, loss_fn, optimis
         optimiser.step()
 
     print(f"Training loss: {(loss_sum/len(train_dataloader))}")
-    print(f"Training Accuracy: {acc/len(train_dataloader)}")
+
+    prfs = metrics.precision_recall_fscore_support(targets_total, predictions_total)
+    print(f"p = {prfs[0]}, r = {prfs[1]}, f = {prfs[2]}, s = {prfs[3]}")
+    print(metrics.classification_report(targets_total, predictions_total))
     
     loss_val_sum = 0
     acc = 0
@@ -99,14 +118,19 @@ def train_single_epoch(model, train_dataloader, val_dataloader, loss_fn, optimis
 
 
 def train(model, train_dataloader, val_dataloader, loss_fn, optimiser, device, epochs):
+    b = time.time()
     for i in range(epochs):
         print(f"Epoch {i + 1}")
+        a = time.time()
         train_single_epoch(model, train_dataloader, val_dataloader, loss_fn, optimiser, device)
+        print(f'Epoch {i} time: {a-b}')
+        b = a
         print("---------------------------")
     print("Finished training")
 
 
 if __name__ == "__main__":
+
     # if the GPU is available - use it
     if torch.cuda.is_available():
         device = "cuda"
@@ -129,6 +153,8 @@ if __name__ == "__main__":
         sample_rate=SAMPLE_RATE,
         # 12-13 is sufficient for English - 20 for tonal langs, maybe accent info
         n_mfcc=20,
+        # for alternate MFCC experiment
+        # n_mfcc=12,
         melkwargs={'hop_length': hop_length,
                    'n_fft': n_fft}
     )
