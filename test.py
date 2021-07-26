@@ -7,15 +7,19 @@ import pandas as pd
 from nat_langs_dataset import NatLangsDataset
 from CNN_model import CNNNetwork
 
-PATH = '/afs/inf.ed.ac.uk/user/s21/s2118613/PycharmProjects/Simple_CNN/l1_classifier_melspec.pth'
+# PATH = '/afs/inf.ed.ac.uk/user/s21/s2118613/PycharmProjects/Simple_CNN/l1_classifier_melspec.pth'
+PATH = '/Users/stephenwalters/Documents/msc_speech_and_language_processing/dissertation/dissertation/l1_classifier_melspec.pth'
 
 # Test file with labels
 #TE_ANNOTATIONS_FILE = '/afs/inf.ed.ac.uk/user/s21/s2118613/dissertation/cslu_fae_labels.csv'
-TE_ANNOTATIONS_FILE = '/content/gdrive/MyDrive/dissertation_data/annotations/cslu_fae_labels.csv'
+# TE_ANNOTATIONS_FILE = '/content/gdrive/MyDrive/dissertation_data/annotations/cslu_fae_labels.csv'
+TE_ANNOTATIONS_FILE = '/Users/stephenwalters/Documents/msc_speech_and_language_processing/dissertation/dissertation_data/annotations/cslu_fae_labels.csv'
 
 # Test audio directory
 #TE_AUDIO_DIR = '/afs/inf.ed.ac.uk/user/s21/s2118613/cslu_fae/speech/'
-TE_AUDIO_DIR = '/content/gdrive/MyDrive/dissertation_data/cslu_fae/speech/'
+# TE_AUDIO_DIR = '/content/gdrive/MyDrive/dissertation_data/cslu_fae/speech/'
+TE_AUDIO_DIR = '/Users/stephenwalters/Documents/msc_speech_and_language_processing/dissertation/dissertation_data/cslu_fae/speech'
+
 
 # Hyperparameters
 BATCH_SIZE = 1
@@ -92,8 +96,7 @@ if __name__ == "__main__":
 
             # calculate outputs by running images through network
             prediction = net(input)
-            print(prediction)
-            print(target)
+
             _,predicted = torch.max(prediction.data, 1)
             if predicted == target:
                 acc += 1

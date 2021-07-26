@@ -1,8 +1,7 @@
 import torch
 from torch import nn
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader
 import torchaudio
-from sklearn.model_selection import train_test_split
 from sklearn import metrics
 import pandas as pd
 import time
@@ -13,7 +12,7 @@ from CNN_model import CNNNetwork
 #### Training Model
 
 # Hyperparameters
-BATCH_SIZE = 10
+BATCH_SIZE = 128
 EPOCHS = 10
 LEARNING_RATE = 0.001
 
@@ -33,14 +32,6 @@ TR_AUDIO_DIR = '/Users/stephenwalters/Documents/msc_speech_and_language_processi
 SAMPLE_RATE = 8000
 # num samples = sample rate -> means 1 seconds worth of audio
 NUM_SAMPLES = 8000
-
-
-def train_val_dataset(dataset, val_split=0.05):
-    train_idx, val_idx = train_test_split(list(range(len(dataset))), test_size=val_split, stratify=True)
-    datasets = {}
-    datasets['train'] = Subset(dataset, train_idx)
-    datasets['val'] = Subset(dataset, val_idx)
-    return datasets
 
 
 def train_single_epoch(model, train_dataloader, val_dataloader, loss_fn, optimiser, device):
@@ -100,7 +91,9 @@ def train_single_epoch(model, train_dataloader, val_dataloader, loss_fn, optimis
     print(metrics.classification_report(targets_total, predictions_total))
     
     loss_val_sum = 0
-    acc = 0
+    targets_val_total = []
+    predictions_val_total = []
+    i=0
     with torch.no_grad():
         for input_val, target_val in val_dataloader:
             target_val_tensor = torch.tensor([class_mapping[x] for x in target_val]).to(device)
@@ -109,12 +102,25 @@ def train_single_epoch(model, train_dataloader, val_dataloader, loss_fn, optimis
 
             loss_val_sum += loss_val
 
-            if prediction_val == target:
-              acc += 1
+            # argmax of classes = prediction
+            prediction_val_acc = torch.argmax(prediction_val, dim=1)
+
+            # Convert prediction tensor to np array and concatenate  into list of predictions
+            prediction_val_acc = prediction_val_acc.numpy()
+            predictions_val_total += list(prediction_val_acc)
+
+            # Convert target tensor to np array and concatenate  into list of targets
+            target_val_acc = target_val_tensor.numpy()
+            targets_val_total += list(target_val_acc)
+
+            i+=1
+            print("Dev",i)
 
     print(f"Dev loss: {(loss_val_sum/len(val_dataloader))}")
-    print(f"Dev Accuracy: {(acc/len(val_dataloader))}")
 
+    prfs = metrics.precision_recall_fscore_support(targets_val_total, predictions_val_total)
+    print(f"Dev p = {prfs[0]}, r = {prfs[1]}, f = {prfs[2]}, s = {prfs[3]}")
+    print(metrics.classification_report(targets_val_total, predictions_val_total))
 
 
 def train(model, train_dataloader, val_dataloader, loss_fn, optimiser, device, epochs):
@@ -162,8 +168,11 @@ if __name__ == "__main__":
     # Train-Validation split
     df = pd.read_csv(TR_ANNOTATIONS_FILE)
     train_sub, val_sub = [], []
+
+    # % of data used in training
     cut = 0.95
-    for el in df.groupby('label'):
+
+    for el in df.groupby('path'):
         el = el[1]
         thres = int(len(el) * cut)
         train_sub.append(el[:thres])
