@@ -12,7 +12,7 @@ from CNN_model import CNNNetwork
 #### Training Model
 
 # Hyperparameters
-BATCH_SIZE = 128
+BATCH_SIZE = 1
 EPOCHS = 10
 LEARNING_RATE = 0.001
 
@@ -68,10 +68,12 @@ def train_single_epoch(model, train_dataloader, val_dataloader, loss_fn, optimis
 
 
         # Convert prediction tensor to np array and concatenate  into list of predictions
+        # prediction_acc = prediction_acc.cpu()
         prediction_acc = prediction_acc.numpy()
         predictions_total += list(prediction_acc)
 
         # Convert target tensor to np array and concatenate  into list of targets
+        # target_tensor = target_tensor.cpu()
         target_acc = target_tensor.numpy()
         targets_total += list(target_acc)
 
@@ -180,15 +182,17 @@ if __name__ == "__main__":
     train_sub = pd.concat(train_sub)
     val_sub = pd.concat(val_sub)
 
-
+    hop_length_cut = 4000
     # instantiating our dataset object and create data loader
     # Training data
-    train_data = NatLangsDataset(train_sub, TR_AUDIO_DIR, mel_spectrogram, SAMPLE_RATE, NUM_SAMPLES,
+    train_data = NatLangsDataset(train_sub, TR_AUDIO_DIR, mel_spectrogram, SAMPLE_RATE, NUM_SAMPLES, hop_length_cut,
                                  device)
     train_dataloader = DataLoader(train_data, batch_size=BATCH_SIZE)
+    # Need padding so every batch has same number of chunks
+    # bag 
 
     # Validation data
-    val_data = NatLangsDataset(val_sub, TR_AUDIO_DIR, mel_spectrogram, SAMPLE_RATE, NUM_SAMPLES,
+    val_data = NatLangsDataset(val_sub, TR_AUDIO_DIR, mel_spectrogram, SAMPLE_RATE, NUM_SAMPLES, hop_length_cut,
                                device)
     val_dataloader = DataLoader(val_data, batch_size=BATCH_SIZE)
 

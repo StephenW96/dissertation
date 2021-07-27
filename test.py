@@ -102,5 +102,4 @@ if __name__ == "__main__":
                 acc += 1
 
 
-
         print('Model Accuracy:', acc/len(test_dataloader)*100,'%')

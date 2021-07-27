@@ -3,12 +3,13 @@ from torch.utils.data import Dataset
 import pandas as pd
 import torchaudio
 import os
+import numpy as np
 
 ## Creates a native language dataset of mel spectrograms and labels for training classifier
 
 class NatLangsDataset(Dataset):
 
-    def __init__(self, dataframe, audio_dir, transformation, target_sample_rate, num_samples, device):
+    def __init__(self, dataframe, audio_dir, transformation, target_sample_rate, num_samples, hop_length, device):
         # file with path, name, labels
 
         # self.annotations = dataframe.iloc[200:204]
@@ -23,6 +24,7 @@ class NatLangsDataset(Dataset):
         # 8000
         self.target_sample_rate = target_sample_rate
         self.num_samples = num_samples
+        self.hop_length = hop_length
 
     def __len__(self):
         # how much data
@@ -32,36 +34,70 @@ class NatLangsDataset(Dataset):
         audio_sample_path = self._get_audio_sample_path(index)
         label = self._get_audio_sample_label(index)
         signal, sr = torchaudio.load(audio_sample_path)
+
         # signal -> (num_channels, samples) -> (2, 16000) --> (1, 16000) ---> look for my data
         signal = signal.to(self.device)
         signal = self._resample_if_necessary(signal, sr)
         signal = self._mix_down_if_necessary(signal)
-        signal = self._cut_if_necessary(signal)
-        signal = self._right_pad_if_necessary(signal)
-        signal = self.transformation(signal)
-        return signal, label
 
-    def _cut_if_necessary(self, signal):
-        # signal -> Tensor -> (1, num_samples) -> (1, 50000) will only go up to num of samples
-        if signal.shape[1] > self.num_samples:
-            signal = signal[:, :self.num_samples]
-        return signal
+        # Cut audio into 1 second chunks
+        signal_list = self._cut_and_pad(signal)
+
+        # signal = self._right_pad_if_necessary(signal)
+
+        # transformation to MelSpec or MFCC for each element in signal_list
+        signal_list = [self.transformation(i) for i in signal_list]
+        print(signal_list)
+        print(signal_list[0].shape)
+
+        return signal_list, label
+
+    def _cut_and_pad(self, signal):
+        signal_list = []
+
+        # First second chunk
+        signal_list.append(signal[:self.num_samples])
+
+        prev_cut = self.num_samples
+
+        # Slice chunks of 1sec with overlap of hop size
+        while prev_cut + self.hop_length < len(signal):
+            signal_list.append(signal[(prev_cut-self.hop_length):prev_cut+self.hop_length])
+            prev_cut += self.hop_length
+
+        # Add leftover signal (only if there is more than one chunk - so to not add 1st chunk twice)
+        if len(signal) - prev_cut > 0 and len(signal_list) > 1:
+            signal_list.append(signal[prev_cut:])
+
+        # Pad leftover signal with zeros to fit sample rate
+        if len(signal_list[-1]) < self.num_samples:
+            padding = torch.zeros(signal_list[-1].shape[0], self.num_samples-signal_list[-1].shape[1])
+            torch.cat([signal_list[-1], padding], dim=1)
+
+
+        return signal_list
+
+
+
+    # def _right_pad_if_necessary(self, signal):
+    #     length_signal = signal.shape[1]
+    #     if length_signal < self.num_samples:
+    #         # [1, 1, 1] -> [1, 1, 1, 0, 0]
+    #         num_missing_samples = self.num_samples - length_signal
+    #         last_dim_padding = (0, num_missing_samples)
+    #         signal = torch.nn.functional.pad(signal, last_dim_padding)
+    #
+    #     for el in signal_list:
+    #         if len(el) < len(num_samples)
+    #         # add 0s to match
+    #
+    #     return signal
 
     def _resample_if_necessary(self, signal, sr):
         if sr != self.target_sample_rate:
             resampler = torchaudio.transforms.Resample(sr, self.target_sample_rate)
             signal = resampler(signal)
         return signal
-
-    def _right_pad_if_necessary(self, signal):
-        length_signal = signal.shape[1]
-        if length_signal < self.num_samples:
-            # [1, 1, 1] -> [1, 1, 1, 0, 0]
-            num_missing_samples = self.num_samples - length_signal
-            last_dim_padding = (0, num_missing_samples)
-            signal = torch.nn.functional.pad(signal, last_dim_padding)
-        return signal
-
 
     def _mix_down_if_necessary(self, signal):
         if signal.shape[0] > 1:
@@ -102,6 +138,3 @@ if __name__ == "__main__":
     print(nld[0])
 
     signal, label = nld[0]
-
-
-
