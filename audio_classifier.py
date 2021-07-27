@@ -12,7 +12,7 @@ from CNN_model import CNNNetwork
 #### Training Model
 
 # Hyperparameters
-BATCH_SIZE = 1
+BATCH_SIZE = 10
 EPOCHS = 10
 LEARNING_RATE = 0.001
 
@@ -50,6 +50,7 @@ def train_single_epoch(model, train_dataloader, val_dataloader, loss_fn, optimis
     i = 0
     targets_total = []
     predictions_total = []
+
     for input, target in train_dataloader:
 
         # Map classes to number, convert batch to tensor
@@ -189,7 +190,7 @@ if __name__ == "__main__":
                                  device)
     train_dataloader = DataLoader(train_data, batch_size=BATCH_SIZE)
     # Need padding so every batch has same number of chunks
-    # bag 
+    # bag
 
     # Validation data
     val_data = NatLangsDataset(val_sub, TR_AUDIO_DIR, mel_spectrogram, SAMPLE_RATE, NUM_SAMPLES, hop_length_cut,

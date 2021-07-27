@@ -46,6 +46,7 @@ class NatLangsDataset(Dataset):
         # signal = self._right_pad_if_necessary(signal)
 
         # transformation to MelSpec or MFCC for each element in signal_list
+
         signal_list = [self.transformation(i) for i in signal_list]
         print(signal_list)
         print(signal_list[0].shape)
@@ -56,24 +57,23 @@ class NatLangsDataset(Dataset):
         signal_list = []
 
         # First second chunk
-        signal_list.append(signal[:self.num_samples])
+        signal_list.append(signal[:, :self.num_samples])
 
         prev_cut = self.num_samples
 
         # Slice chunks of 1sec with overlap of hop size
-        while prev_cut + self.hop_length < len(signal):
-            signal_list.append(signal[(prev_cut-self.hop_length):prev_cut+self.hop_length])
+        while prev_cut + self.hop_length < signal.shape[1]:
+            signal_list.append(signal[:,(prev_cut-self.hop_length):prev_cut+self.hop_length])
             prev_cut += self.hop_length
 
         # Add leftover signal (only if there is more than one chunk - so to not add 1st chunk twice)
-        if len(signal) - prev_cut > 0 and len(signal_list) > 1:
-            signal_list.append(signal[prev_cut:])
+        if signal.shape[1] - prev_cut > 0 and len(signal_list) >= 1:
+            signal_list.append(signal[:, prev_cut:])
 
         # Pad leftover signal with zeros to fit sample rate
-        if len(signal_list[-1]) < self.num_samples:
+        if signal_list[-1].shape[1]-prev_cut < self.num_samples:
             padding = torch.zeros(signal_list[-1].shape[0], self.num_samples-signal_list[-1].shape[1])
-            torch.cat([signal_list[-1], padding], dim=1)
-
+            signal_list[-1] = torch.cat([signal_list[-1], padding], dim=1)
 
         return signal_list
 
