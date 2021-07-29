@@ -26,6 +26,7 @@ class NatLangsDataset(Dataset):
         self.num_samples = num_samples
         self.hop_length = hop_length
 
+
     def __len__(self):
         # how much data
         return len(self.annotations)
@@ -48,8 +49,11 @@ class NatLangsDataset(Dataset):
         # transformation to MelSpec or MFCC for each element in signal_list
 
         signal_list = [self.transformation(i) for i in signal_list]
-        print(signal_list)
-        print(signal_list[0].shape)
+        # print(signal_list)
+        # print(signal_list[0].shape)
+
+        # signal_list = torch.stack(signal_list)
+        # signal_list = torch.unsqueeze(signal_list, dim=0)
 
         return signal_list, label
 

@@ -7,12 +7,13 @@ import pandas as pd
 import time
 from nat_langs_dataset import NatLangsDataset
 from CNN_model import CNNNetwork
+from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
 
 #### Training Model
 
 # Hyperparameters
-BATCH_SIZE = 10
+BATCH_SIZE = 128
 EPOCHS = 10
 LEARNING_RATE = 0.001
 
@@ -53,13 +54,21 @@ def train_single_epoch(model, train_dataloader, val_dataloader, loss_fn, optimis
 
     for input, target in train_dataloader:
 
+        print(input.shape)
+        # print(target)
+
+        # input --> pad
+
         # Map classes to number, convert batch to tensor
-        target_tensor = torch.tensor([class_mapping[x] for x in target]).to(device)
+        # target_tensor = torch.tensor([class_mapping[x] for x in target]).to(device)
         # print(target_tensor)
+
+        # second = torch.squeeze(input, dim=1)
 
         # calculate loss
         prediction = model(input.to(device))
-        loss = loss_fn(prediction, target_tensor)
+        loss = loss_fn(prediction, target)
+        print(loss)
 
         # accumulate loss for average
         loss_sum += loss
@@ -75,13 +84,11 @@ def train_single_epoch(model, train_dataloader, val_dataloader, loss_fn, optimis
 
         # Convert target tensor to np array and concatenate  into list of targets
         # target_tensor = target_tensor.cpu()
-        target_acc = target_tensor.numpy()
+        target_acc = target.numpy()
         targets_total += list(target_acc)
 
         i+=1
         print(i)
-
-
         # backpropagate error and update weights
         optimiser.zero_grad()
         loss.backward()
@@ -90,40 +97,40 @@ def train_single_epoch(model, train_dataloader, val_dataloader, loss_fn, optimis
     print(f"Training loss: {(loss_sum/len(train_dataloader))}")
 
     prfs = metrics.precision_recall_fscore_support(targets_total, predictions_total)
-    print(f"p = {prfs[0]}, r = {prfs[1]}, f = {prfs[2]}, s = {prfs[3]}")
     print(metrics.classification_report(targets_total, predictions_total))
     
     loss_val_sum = 0
     targets_val_total = []
     predictions_val_total = []
     i=0
-    with torch.no_grad():
-        for input_val, target_val in val_dataloader:
-            target_val_tensor = torch.tensor([class_mapping[x] for x in target_val]).to(device)
-            prediction_val = model(input_val.to(device))
-            loss_val = loss_fn(prediction_val, target_val_tensor)
-
-            loss_val_sum += loss_val
-
-            # argmax of classes = prediction
-            prediction_val_acc = torch.argmax(prediction_val, dim=1)
-
-            # Convert prediction tensor to np array and concatenate  into list of predictions
-            prediction_val_acc = prediction_val_acc.numpy()
-            predictions_val_total += list(prediction_val_acc)
-
-            # Convert target tensor to np array and concatenate  into list of targets
-            target_val_acc = target_val_tensor.numpy()
-            targets_val_total += list(target_val_acc)
-
-            i+=1
-            print("Dev",i)
-
-    print(f"Dev loss: {(loss_val_sum/len(val_dataloader))}")
-
-    prfs = metrics.precision_recall_fscore_support(targets_val_total, predictions_val_total)
-    print(f"Dev p = {prfs[0]}, r = {prfs[1]}, f = {prfs[2]}, s = {prfs[3]}")
-    print(metrics.classification_report(targets_val_total, predictions_val_total))
+    # with torch.no_grad():
+    #     for input_val, target_val in val_dataloader:
+    #
+    #         # target_val_tensor = torch.tensor([class_mapping[x] for x in target_val]).to(device)
+    #         prediction_val = model(input_val.to(device))
+    #         loss_val = loss_fn(prediction_val, target_val)
+    #
+    #         loss_val_sum += loss_val
+    #
+    #         # argmax of classes = prediction
+    #         prediction_val_acc = torch.argmax(prediction_val, dim=1)
+    #
+    #         # Convert prediction tensor to np array and concatenate  into list of predictions
+    #         prediction_val_acc = prediction_val_acc.numpy()
+    #         predictions_val_total += list(prediction_val_acc)
+    #
+    #         # Convert target tensor to np array and concatenate  into list of targets
+    #         target_val_acc = target_val_tensor.numpy()
+    #         targets_val_total += list(target_val_acc)
+    #
+    #         i+=1
+    #         print("Dev",i)
+    #
+    # print(f"Dev loss: {(loss_val_sum/len(val_dataloader))}")
+    #
+    # prfs = metrics.precision_recall_fscore_support(targets_val_total, predictions_val_total)
+    # print(f"Dev p = {prfs[0]}, r = {prfs[1]}, f = {prfs[2]}, s = {prfs[3]}")
+    # print(metrics.classification_report(targets_val_total, predictions_val_total))
 
 
 def train(model, train_dataloader, val_dataloader, loss_fn, optimiser, device, epochs):
@@ -136,6 +143,34 @@ def train(model, train_dataloader, val_dataloader, loss_fn, optimiser, device, e
         b = a
         print("---------------------------")
     print("Finished training")
+
+# Take data
+# Sort into sizes
+# take batch
+# run batch through collate
+
+def my_collate(batch):
+
+    class_mapping = {
+        'BP': 0,
+        'CA': 1,
+        'GE': 2,
+        'MA': 3,
+        'RU': 4,
+        'SP': 5
+    }
+
+    x, y = [], []
+    for utterance, target in batch:
+        for second in utterance:
+            x.append(second)
+            y.append(class_mapping[target])
+    y = torch.LongTensor(y)
+    # print([i.shape for i in x])
+    x = torch.stack(x)
+
+
+    return x, y
 
 
 if __name__ == "__main__":
@@ -168,13 +203,14 @@ if __name__ == "__main__":
                    'n_fft': n_fft}
     )
 
-    # Train-Validation split
+    # Load in data csv
     df = pd.read_csv(TR_ANNOTATIONS_FILE)
     train_sub, val_sub = [], []
 
     # % of data used in training
     cut = 0.95
 
+    # Train-Validation split
     for el in df.groupby('path'):
         el = el[1]
         thres = int(len(el) * cut)
@@ -183,19 +219,20 @@ if __name__ == "__main__":
     train_sub = pd.concat(train_sub)
     val_sub = pd.concat(val_sub)
 
+    # Hop for second chunks of audio
     hop_length_cut = 4000
     # instantiating our dataset object and create data loader
     # Training data
     train_data = NatLangsDataset(train_sub, TR_AUDIO_DIR, mel_spectrogram, SAMPLE_RATE, NUM_SAMPLES, hop_length_cut,
                                  device)
-    train_dataloader = DataLoader(train_data, batch_size=BATCH_SIZE)
-    # Need padding so every batch has same number of chunks
-    # bag
+
+    train_dataloader = DataLoader(train_data, batch_size=BATCH_SIZE, collate_fn=my_collate, shuffle=True)
+
 
     # Validation data
     val_data = NatLangsDataset(val_sub, TR_AUDIO_DIR, mel_spectrogram, SAMPLE_RATE, NUM_SAMPLES, hop_length_cut,
                                device)
-    val_dataloader = DataLoader(val_data, batch_size=BATCH_SIZE)
+    val_dataloader = DataLoader(val_data, batch_size=BATCH_SIZE, collate_fn=my_collate, shuffle=True)
 
     # dataiter = iter(train_dataloader)
     # feature, label = dataiter.next()
