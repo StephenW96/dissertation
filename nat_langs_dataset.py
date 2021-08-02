@@ -12,7 +12,7 @@ class NatLangsDataset(Dataset):
     def __init__(self, dataframe, audio_dir, transformation, target_sample_rate, num_samples, hop_length, device):
         # file with path, name, labels
 
-        # self.annotations = dataframe.iloc[200:204]
+        # self.annotations = dataframe.iloc[200:210]
         self.annotations = dataframe
 
         # path from cslu to each lang and speaker
@@ -76,7 +76,7 @@ class NatLangsDataset(Dataset):
 
         # Pad leftover signal with zeros to fit sample rate
         if signal_list[-1].shape[1]-prev_cut < self.num_samples:
-            padding = torch.zeros(signal_list[-1].shape[0], self.num_samples-signal_list[-1].shape[1])
+            padding = torch.zeros(signal_list[-1].shape[0], self.num_samples-signal_list[-1].shape[1]).to(self.device)
             signal_list[-1] = torch.cat([signal_list[-1], padding], dim=1)
 
         return signal_list

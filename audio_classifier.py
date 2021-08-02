@@ -7,14 +7,20 @@ import pandas as pd
 import time
 from nat_langs_dataset import NatLangsDataset
 from CNN_model import CNNNetwork
-from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
+import pickle as pk
+import random
+import numpy as np
 
+# Set Random seeds
+random.seed(0)
+np.random.seed(0)
+torch.manual_seed(0)
 
 #### Training Model
 
 # Hyperparameters
 BATCH_SIZE = 128
-EPOCHS = 10
+EPOCHS = 100
 LEARNING_RATE = 0.001
 
 # Train file with labels
@@ -54,95 +60,143 @@ def train_single_epoch(model, train_dataloader, val_dataloader, loss_fn, optimis
 
     for input, target in train_dataloader:
 
-        print(input.shape)
-        # print(target)
+        # put data to device
+        input = input.to(device)
+        target = target.to(device)
 
-        # input --> pad
+        # print(input.shape)
+        # print(target)
 
         # Map classes to number, convert batch to tensor
         # target_tensor = torch.tensor([class_mapping[x] for x in target]).to(device)
         # print(target_tensor)
 
-        # second = torch.squeeze(input, dim=1)
-
         # calculate loss
         prediction = model(input.to(device))
-        loss = loss_fn(prediction, target)
-        print(loss)
+        loss = loss_fn(prediction, target).to(device)
 
         # accumulate loss for average
         loss_sum += loss
 
         # argmax of classes = prediction
-        prediction_acc = torch.argmax(prediction, dim=1)
+        prediction_acc = torch.argmax(prediction, dim=1).to(device)
 
-
-        # Convert prediction tensor to np array and concatenate  into list of predictions
-        # prediction_acc = prediction_acc.cpu()
+        # Convert prediction tensor to np array and concatenate into list of predictions
+        prediction_acc = prediction_acc.cpu()
         prediction_acc = prediction_acc.numpy()
         predictions_total += list(prediction_acc)
 
-        # Convert target tensor to np array and concatenate  into list of targets
-        # target_tensor = target_tensor.cpu()
+        # Convert target tensor to np array and concatenate into list of targets
+        target = target.cpu()
         target_acc = target.numpy()
         targets_total += list(target_acc)
 
-        i+=1
-        print(i)
+        # print batch number
+        i += 1
+        # print(i)
+
         # backpropagate error and update weights
         optimiser.zero_grad()
         loss.backward()
         optimiser.step()
 
-    print(f"Training loss: {(loss_sum/len(train_dataloader))}")
+    train_loss = loss_sum/len(train_dataloader)
+    print(f"Training loss: {train_loss}")
 
-    prfs = metrics.precision_recall_fscore_support(targets_total, predictions_total)
     print(metrics.classification_report(targets_total, predictions_total))
-    
+
+
     loss_val_sum = 0
     targets_val_total = []
     predictions_val_total = []
-    i=0
-    # with torch.no_grad():
-    #     for input_val, target_val in val_dataloader:
-    #
-    #         # target_val_tensor = torch.tensor([class_mapping[x] for x in target_val]).to(device)
-    #         prediction_val = model(input_val.to(device))
-    #         loss_val = loss_fn(prediction_val, target_val)
-    #
-    #         loss_val_sum += loss_val
-    #
-    #         # argmax of classes = prediction
-    #         prediction_val_acc = torch.argmax(prediction_val, dim=1)
-    #
-    #         # Convert prediction tensor to np array and concatenate  into list of predictions
-    #         prediction_val_acc = prediction_val_acc.numpy()
-    #         predictions_val_total += list(prediction_val_acc)
-    #
-    #         # Convert target tensor to np array and concatenate  into list of targets
-    #         target_val_acc = target_val_tensor.numpy()
-    #         targets_val_total += list(target_val_acc)
-    #
-    #         i+=1
-    #         print("Dev",i)
-    #
-    # print(f"Dev loss: {(loss_val_sum/len(val_dataloader))}")
-    #
-    # prfs = metrics.precision_recall_fscore_support(targets_val_total, predictions_val_total)
-    # print(f"Dev p = {prfs[0]}, r = {prfs[1]}, f = {prfs[2]}, s = {prfs[3]}")
-    # print(metrics.classification_report(targets_val_total, predictions_val_total))
+    i = 0
+    with torch.no_grad():
+        for input_val, target_val in val_dataloader:
+
+            # put data to device
+            input_val = input_val.to(device)
+            target_val = target_val.to(device)
+
+            # target_val_tensor = torch.tensor([class_mapping[x] for x in target_val]).to(device)
+            # calculate loss
+            prediction_val = model(input_val.to(device))
+            dev_loss = loss_fn(prediction_val, target_val).to(device)
+
+            # accumulate loss for average
+            loss_val_sum += dev_loss
+
+            # argmax of classes = prediction
+            prediction_val_acc = torch.argmax(prediction_val, dim=1).to(device)
+
+            # Convert prediction tensor to np array and concatenate into list of predictions
+            prediction_val_acc = prediction_val_acc.cpu()
+            prediction_val_acc = prediction_val_acc.numpy()
+            predictions_val_total += list(prediction_val_acc)
+
+            # Convert target tensor to np array and concatenate  into list of targets
+            target_val = target_val.cpu()
+            target_val_acc = target_val.numpy()
+            targets_val_total += list(target_val_acc)
+
+            # print batch number
+            i+=1
+            # print("Val",i)
+
+            # No backpropagation for validation set
+    dev_loss = loss_val_sum/len(val_dataloader)
+    print(f"Dev loss: {(dev_loss)}")
+
+    print(metrics.classification_report(targets_val_total, predictions_val_total))
+
+    return train_loss, dev_loss
 
 
 def train(model, train_dataloader, val_dataloader, loss_fn, optimiser, device, epochs):
-    b = time.time()
+
+    min = 100000
+    counter = 0
+    train_loss_array = []
+    dev_loss_array = []
+
     for i in range(epochs):
-        print(f"Epoch {i + 1}")
+        # Time epoch
         a = time.time()
-        train_single_epoch(model, train_dataloader, val_dataloader, loss_fn, optimiser, device)
-        print(f'Epoch {i} time: {a-b}')
-        b = a
+        print(f"Epoch {i + 1}")
+        # Train epoch
+        train_loss, dev_loss = train_single_epoch(model, train_dataloader, val_dataloader, loss_fn, optimiser, device)
+        b = time.time()
+        print(f'Epoch {i + 1} time: {b - a}')
         print("---------------------------")
+
+        # Convert loss tensor to scalar
+        train_loss = train_loss.detach().numpy()
+        dev_loss = dev_loss.numpy()
+
+        # Append train & dev losses to array
+        train_loss_array.append(train_loss)
+        dev_loss_array.append(dev_loss)
+
+        # if current epochs val loss value < best loss so far --> set new best loss
+        if dev_loss < min:
+            min = dev_loss
+            counter = 0
+
+            # Save current best model
+            torch.save(cnn_net.state_dict(), "./l1_classifier_melspec.pth")
+
+        # if current loss is worse than best loss --> counter
+        else:
+            counter +=1
+
+        # if loss doesnt improve in 5 successive epochs end training
+        if counter == 5:
+            break
+
     print("Finished training")
+
+    with open('./l1_classifier_melspec_losses.pk', 'wb') as f:
+        pk.dump((train_loss_array, dev_loss_array), f, protocol=pk.HIGHEST_PROTOCOL)
+
 
 # Take data
 # Sort into sizes
@@ -150,7 +204,6 @@ def train(model, train_dataloader, val_dataloader, loss_fn, optimiser, device, e
 # run batch through collate
 
 def my_collate(batch):
-
     class_mapping = {
         'BP': 0,
         'CA': 1,
@@ -168,7 +221,6 @@ def my_collate(batch):
     y = torch.LongTensor(y)
     # print([i.shape for i in x])
     x = torch.stack(x)
-
 
     return x, y
 
@@ -208,7 +260,7 @@ if __name__ == "__main__":
     train_sub, val_sub = [], []
 
     # % of data used in training
-    cut = 0.95
+    cut = 0.90
 
     # Train-Validation split
     for el in df.groupby('path'):
@@ -227,7 +279,6 @@ if __name__ == "__main__":
                                  device)
 
     train_dataloader = DataLoader(train_data, batch_size=BATCH_SIZE, collate_fn=my_collate, shuffle=True)
-
 
     # Validation data
     val_data = NatLangsDataset(val_sub, TR_AUDIO_DIR, mel_spectrogram, SAMPLE_RATE, NUM_SAMPLES, hop_length_cut,
@@ -251,6 +302,8 @@ if __name__ == "__main__":
     # train model
     train(cnn_net, train_dataloader, val_dataloader, loss_fn, optimiser, device, EPOCHS)
 
+
+
     # save model
-    torch.save(cnn_net.state_dict(), "l1_classifier_melspec.pth")
+    # torch.save(cnn_net.state_dict(), "l1_classifier_melspec.pth")
     print("Trained feed forward net saved at l1_classifier.pth")
