@@ -60,22 +60,22 @@ class NatLangsDataset(Dataset):
     def _cut_and_pad(self, signal):
         signal_list = []
 
-        # First second chunk
+        # First 1sec chunk
         signal_list.append(signal[:, :self.num_samples])
 
-        prev_cut = self.num_samples
+        prev_cut = self.hop_length
 
         # Slice chunks of 1sec with overlap of hop size
-        while prev_cut + self.hop_length < signal.shape[1]:
-            signal_list.append(signal[:,(prev_cut-self.hop_length):prev_cut+self.hop_length])
+        while prev_cut + self.num_samples <= signal.shape[1]:
+            signal_list.append(signal[:, prev_cut:prev_cut+self.num_samples])
             prev_cut += self.hop_length
 
         # Add leftover signal (only if there is more than one chunk - so to not add 1st chunk twice)
-        if signal.shape[1] - prev_cut > 0 and len(signal_list) >= 1:
+        if signal.shape[1] - prev_cut > 0 and len(signal_list) > 1:
             signal_list.append(signal[:, prev_cut:])
 
         # Pad leftover signal with zeros to fit sample rate
-        if signal_list[-1].shape[1]-prev_cut < self.num_samples:
+        if signal_list[-1].shape[1] < self.num_samples:
             padding = torch.zeros(signal_list[-1].shape[0], self.num_samples-signal_list[-1].shape[1]).to(self.device)
             signal_list[-1] = torch.cat([signal_list[-1], padding], dim=1)
 

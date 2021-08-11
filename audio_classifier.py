@@ -22,6 +22,7 @@ torch.manual_seed(0)
 BATCH_SIZE = 128
 EPOCHS = 100
 LEARNING_RATE = 0.001
+WEIGHT_DECAY = 0.0001
 
 # Train file with labels
 # TR_ANNOTATIONS_FILE = '/afs/inf.ed.ac.uk/user/s21/s2118613/dissertation/cslu_22_labels.csv'
@@ -43,14 +44,14 @@ NUM_SAMPLES = 8000
 
 def train_single_epoch(model, train_dataloader, val_dataloader, loss_fn, optimiser, device):
     # Dict for mapping classes to numbers
-    class_mapping = {
-        'BP': 0,
-        'CA': 1,
-        'GE': 2,
-        'MA': 3,
-        'RU': 4,
-        'SP': 5
-    }
+    # class_mapping = {
+    #     'BP': 0,
+    #     'CA': 1,
+    #     'GE': 2,
+    #     'MA': 3,
+    #     'RU': 4,
+    #     'SP': 5
+    # }
 
     loss_sum = 0
 
@@ -93,7 +94,7 @@ def train_single_epoch(model, train_dataloader, val_dataloader, loss_fn, optimis
 
         # print batch number
         i += 1
-        # print(i)
+        print(i)
 
         # backpropagate error and update weights
         optimiser.zero_grad()
@@ -189,7 +190,7 @@ def train(model, train_dataloader, val_dataloader, loss_fn, optimiser, device, e
             counter +=1
 
         # if loss doesnt improve in 5 successive epochs end training
-        if counter == 5:
+        if counter == 10:
             break
 
     print("Finished training")
@@ -260,7 +261,7 @@ if __name__ == "__main__":
     train_sub, val_sub = [], []
 
     # % of data used in training
-    cut = 0.90
+    cut = 0.95
 
     # Train-Validation split
     for el in df.groupby('path'):
@@ -272,16 +273,16 @@ if __name__ == "__main__":
     val_sub = pd.concat(val_sub)
 
     # Hop for second chunks of audio
-    hop_length_cut = 4000
+    hop_length_cut = 400
     # instantiating our dataset object and create data loader
     # Training data
-    train_data = NatLangsDataset(train_sub, TR_AUDIO_DIR, mel_spectrogram, SAMPLE_RATE, NUM_SAMPLES, hop_length_cut,
+    train_data = NatLangsDataset(train_sub, TR_AUDIO_DIR, mfcc, SAMPLE_RATE, NUM_SAMPLES, hop_length_cut,
                                  device)
 
     train_dataloader = DataLoader(train_data, batch_size=BATCH_SIZE, collate_fn=my_collate, shuffle=True)
 
     # Validation data
-    val_data = NatLangsDataset(val_sub, TR_AUDIO_DIR, mel_spectrogram, SAMPLE_RATE, NUM_SAMPLES, hop_length_cut,
+    val_data = NatLangsDataset(val_sub, TR_AUDIO_DIR, mfcc, SAMPLE_RATE, NUM_SAMPLES, hop_length_cut,
                                device)
     val_dataloader = DataLoader(val_data, batch_size=BATCH_SIZE, collate_fn=my_collate, shuffle=True)
 
@@ -295,9 +296,9 @@ if __name__ == "__main__":
     # print(cnn_net)
 
     # initialise loss function + optimiser
-    loss_fn = nn.CrossEntropyLoss()
+    loss_fn = nn.CrossEntropyLoss() # L2reg
     optimiser = torch.optim.Adam(cnn_net.parameters(),
-                                 lr=LEARNING_RATE)
+                                 lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
 
     # train model
     train(cnn_net, train_dataloader, val_dataloader, loss_fn, optimiser, device, EPOCHS)
