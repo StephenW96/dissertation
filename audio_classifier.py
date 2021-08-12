@@ -21,13 +21,13 @@ torch.manual_seed(0)
 # Hyperparameters
 BATCH_SIZE = 128
 EPOCHS = 100
-LEARNING_RATE = 0.001
+LEARNING_RATE = 0.0005
 WEIGHT_DECAY = 0.0001
 
 # Train file with labels
 # TR_ANNOTATIONS_FILE = '/afs/inf.ed.ac.uk/user/s21/s2118613/dissertation/cslu_22_labels.csv'
 # TR_ANNOTATIONS_FILE = '/content/gdrive/MyDrive/dissertation_data/annotations/cslu_22_labels.csv'
-TR_ANNOTATIONS_FILE = '/Users/stephenwalters/Documents/msc_speech_and_language_processing/dissertation/dissertation_data/annotations/cslu_22_labels.csv'
+TR_ANNOTATIONS_FILE = '/Users/stephenwalters/Documents/msc_speech_and_language_processing/dissertation/dissertation_data/annotations/cslu_22_labels_3langs.csv'
 
 # AUDIO_DIR = '/group/corporapublic/cslu_22_lang/speech/'
 
@@ -52,6 +52,12 @@ def train_single_epoch(model, train_dataloader, val_dataloader, loss_fn, optimis
     #     'RU': 4,
     #     'SP': 5
     # }
+
+    class_mapping = {
+        'CA': 0,
+        'GE': 1,
+        'SP': 2,
+    }
 
     loss_sum = 0
 
@@ -106,6 +112,9 @@ def train_single_epoch(model, train_dataloader, val_dataloader, loss_fn, optimis
 
     print(metrics.classification_report(targets_total, predictions_total))
 
+    # Accuracy score for the epoch (train)
+    train_acc = metrics.accuracy_score(targets_total, predictions_total)
+
 
     loss_val_sum = 0
     targets_val_total = []
@@ -149,7 +158,10 @@ def train_single_epoch(model, train_dataloader, val_dataloader, loss_fn, optimis
 
     print(metrics.classification_report(targets_val_total, predictions_val_total))
 
-    return train_loss, dev_loss
+    # Accuracy score for the epoch (dev)
+    dev_acc = metrics.accuracy_score(targets_val_total, predictions_val_total)
+
+    return train_loss, dev_loss, train_acc, dev_acc
 
 
 def train(model, train_dataloader, val_dataloader, loss_fn, optimiser, device, epochs):
@@ -164,13 +176,15 @@ def train(model, train_dataloader, val_dataloader, loss_fn, optimiser, device, e
         a = time.time()
         print(f"Epoch {i + 1}")
         # Train epoch
-        train_loss, dev_loss = train_single_epoch(model, train_dataloader, val_dataloader, loss_fn, optimiser, device)
+        train_loss, dev_loss, train_acc, dev_acc = train_single_epoch(model, train_dataloader, val_dataloader, loss_fn, optimiser, device)
         b = time.time()
         print(f'Epoch {i + 1} time: {b - a}')
         print("---------------------------")
 
         # Convert loss tensor to scalar
+        train_loss = train_loss.cpu()
         train_loss = train_loss.detach().numpy()
+        dev_loss = dev_loss.cpu()
         dev_loss = dev_loss.numpy()
 
         # Append train & dev losses to array
@@ -183,21 +197,23 @@ def train(model, train_dataloader, val_dataloader, loss_fn, optimiser, device, e
             counter = 0
 
             # Save current best model
-            torch.save(cnn_net.state_dict(), "./l1_classifier_melspec.pth")
+            torch.save(cnn_net.state_dict(), "./l1_classifier_mfcc.pth")
 
         # if current loss is worse than best loss --> counter
         else:
             counter +=1
 
         # if loss doesnt improve in 5 successive epochs end training
-        if counter == 10:
+        if counter == 1000:
             break
 
     print("Finished training")
 
-    with open('./l1_classifier_melspec_losses.pk', 'wb') as f:
+    with open('./l1_classifier_mfcc_losses.pk', 'wb') as f:
         pk.dump((train_loss_array, dev_loss_array), f, protocol=pk.HIGHEST_PROTOCOL)
 
+    with open('./l1_classifier_mfcc_accuracies.pk', 'wb') as f:
+        pk.dump((train_loss_array, dev_loss_array), f, protocol=pk.HIGHEST_PROTOCOL)
 
 # Take data
 # Sort into sizes
@@ -205,13 +221,19 @@ def train(model, train_dataloader, val_dataloader, loss_fn, optimiser, device, e
 # run batch through collate
 
 def my_collate(batch):
+    # class_mapping = {
+    #     'BP': 0,
+    #     'CA': 1,
+    #     'GE': 2,
+    #     'MA': 3,
+    #     'RU': 4,
+    #     'SP': 5
+    # }
+
     class_mapping = {
-        'BP': 0,
-        'CA': 1,
-        'GE': 2,
-        'MA': 3,
-        'RU': 4,
-        'SP': 5
+        'CA': 0,
+        'GE': 1,
+        'SP': 2,
     }
 
     x, y = [], []
@@ -261,7 +283,7 @@ if __name__ == "__main__":
     train_sub, val_sub = [], []
 
     # % of data used in training
-    cut = 0.95
+    cut = 0.90
 
     # Train-Validation split
     for el in df.groupby('path'):
