@@ -170,6 +170,9 @@ def train(model, train_dataloader, val_dataloader, loss_fn, optimiser, device, e
     counter = 0
     train_loss_array = []
     dev_loss_array = []
+    train_acc_array = []
+    dev_acc_array = []
+
 
     for i in range(epochs):
         # Time epoch
@@ -190,6 +193,10 @@ def train(model, train_dataloader, val_dataloader, loss_fn, optimiser, device, e
         # Append train & dev losses to array
         train_loss_array.append(train_loss)
         dev_loss_array.append(dev_loss)
+
+        # Append train & dev accuracies to array
+        train_acc_array.append(train_acc)
+        dev_acc_array.append(dev_acc)
 
         # if current epochs val loss value < best loss so far --> set new best loss
         if dev_loss < min:
@@ -213,7 +220,7 @@ def train(model, train_dataloader, val_dataloader, loss_fn, optimiser, device, e
         pk.dump((train_loss_array, dev_loss_array), f, protocol=pk.HIGHEST_PROTOCOL)
 
     with open('./l1_classifier_mfcc_accuracies.pk', 'wb') as f:
-        pk.dump((train_loss_array, dev_loss_array), f, protocol=pk.HIGHEST_PROTOCOL)
+        pk.dump((train_acc_array, dev_acc_array), f, protocol=pk.HIGHEST_PROTOCOL)
 
 # Take data
 # Sort into sizes
