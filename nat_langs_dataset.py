@@ -6,7 +6,6 @@ import os
 import numpy as np
 
 ## Creates a native language dataset of mel spectrograms and labels for training classifier
-
 class NatLangsDataset(Dataset):
 
     def __init__(self, dataframe, audio_dir, transformation, target_sample_rate, num_samples, hop_length, device):

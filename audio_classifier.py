@@ -43,21 +43,6 @@ NUM_SAMPLES = 8000
 
 
 def train_single_epoch(model, train_dataloader, val_dataloader, loss_fn, optimiser, device):
-    # Dict for mapping classes to numbers
-    # class_mapping = {
-    #     'BP': 0,
-    #     'CA': 1,
-    #     'GE': 2,
-    #     'MA': 3,
-    #     'RU': 4,
-    #     'SP': 5
-    # }
-
-    class_mapping = {
-        'CA': 0,
-        'GE': 1,
-        'SP': 2,
-    }
 
     loss_sum = 0
 
@@ -70,13 +55,6 @@ def train_single_epoch(model, train_dataloader, val_dataloader, loss_fn, optimis
         # put data to device
         input = input.to(device)
         target = target.to(device)
-
-        # print(input.shape)
-        # print(target)
-
-        # Map classes to number, convert batch to tensor
-        # target_tensor = torch.tensor([class_mapping[x] for x in target]).to(device)
-        # print(target_tensor)
 
         # calculate loss
         prediction = model(input.to(device))
@@ -127,7 +105,6 @@ def train_single_epoch(model, train_dataloader, val_dataloader, loss_fn, optimis
             input_val = input_val.to(device)
             target_val = target_val.to(device)
 
-            # target_val_tensor = torch.tensor([class_mapping[x] for x in target_val]).to(device)
             # calculate loss
             prediction_val = model(input_val.to(device))
             dev_loss = loss_fn(prediction_val, target_val).to(device)
@@ -211,8 +188,9 @@ def train(model, train_dataloader, val_dataloader, loss_fn, optimiser, device, e
             counter +=1
 
         # if loss doesnt improve in 5 successive epochs end training
-        if counter == 1000:
-            break
+        if counter == 100:
+            print("Finished training")
+            quit()
 
     print("Finished training")
 
@@ -264,9 +242,10 @@ if __name__ == "__main__":
         device = "cpu"
     print(f"Using {device}")
 
+
     hop_length = 512
     n_fft = 1024
-    # defining mel-spectrogram data input
+    # Mel-spectrogram input
     mel_spectrogram = torchaudio.transforms.MelSpectrogram(
         sample_rate=SAMPLE_RATE,
         n_fft=n_fft,
@@ -301,8 +280,9 @@ if __name__ == "__main__":
     train_sub = pd.concat(train_sub)
     val_sub = pd.concat(val_sub)
 
-    # Hop for second chunks of audio
+    # Hop for chunks of audio (overlap between chunks)
     hop_length_cut = 400
+
     # instantiating our dataset object and create data loader
     # Training data
     train_data = NatLangsDataset(train_sub, TR_AUDIO_DIR, mfcc, SAMPLE_RATE, NUM_SAMPLES, hop_length_cut,
@@ -315,14 +295,9 @@ if __name__ == "__main__":
                                device)
     val_dataloader = DataLoader(val_data, batch_size=BATCH_SIZE, collate_fn=my_collate, shuffle=True)
 
-    # dataiter = iter(train_dataloader)
-    # feature, label = dataiter.next()
-    # print(feature.shape)
-    # print(label)
 
     # construct model and assign it to device
     cnn_net = CNNNetwork().to(device)
-    # print(cnn_net)
 
     # initialise loss function + optimiser
     loss_fn = nn.CrossEntropyLoss() # L2reg
@@ -332,8 +307,3 @@ if __name__ == "__main__":
     # train model
     train(cnn_net, train_dataloader, val_dataloader, loss_fn, optimiser, device, EPOCHS)
 
-
-
-    # save model
-    # torch.save(cnn_net.state_dict(), "l1_classifier_melspec.pth")
-    print("Trained feed forward net saved at l1_classifier.pth")
